@@ -36,7 +36,8 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ shturl.cc/jA }}          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ shturl.cc/Fp }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
