@@ -1,3 +1,59 @@
+# MeTube（中文汉化版）
+
+> 本仓库是 [MeTube](https://github.com/alexta69/metube) 的**简体中文汉化版**，在前端界面完成原生汉化，其余功能与官方版一致。
+
+## 🇨🇳 中文汉化说明
+
+本分支在官方 MeTube 源码基础上，将前端界面**全面汉化为简体中文**，覆盖：
+
+| 模块 | 汉化内容 |
+| :--- | :--- |
+| 主界面 | 下载中 / 排队中 / 已完成 / 失败 指标，下载 / 订阅 / 浏览按钮 |
+| 高级选项 | 全部字段标签 + 帮助提示（ngbPopover） |
+| 三个分区 | 下载中、已完成、订阅（全部按钮、状态、表头） |
+| 批量导入 | 弹窗、确认按钮、错误提示 |
+| 播放列表浏览 | 全部界面文本 |
+| 其他 | Cookies 工具区、批量操作（导入/导出/复制链接）、全部 toast 错误消息 |
+
+### 与原版的差异
+
+- 界面文本为**简体中文**（原生替换，非外部翻译层）
+- 支持 `DELETE_FILE_ON_TRASHCAN=ask` 删除询问模式（删除时三选一：删除文件 / 仅移除列表 / 取消）
+- 无语言切换开关（界面固定中文）
+
+### 构建
+
+```bash
+# arm64（如 Oracle Cloud / 云 ARM 实例）
+docker build --build-arg TARGETARCH=arm64 -t metube-cn:latest .
+
+# amd64（x86 服务器）
+docker build --build-arg TARGETARCH=amd64 -t metube-cn:latest .
+```
+
+> 注意：Docker legacy builder 不会自动填充 `TARGETARCH`，**必须显式传入架构参数**，否则 ffmpeg 下载环节会因架构选择失败而中断构建。
+
+### 运行
+
+```bash
+docker run -d \
+  --name metube \
+  --restart unless-stopped \
+  -p 8081:8081 \
+  -v /path/to/downloads:/downloads \
+  -e DELETE_FILE_ON_TRASHCAN=ask \
+  metube-cn:latest
+```
+
+`DELETE_FILE_ON_TRASHCAN` 取值：
+- `false`（默认）：前端删除只移除列表记录，**不删除磁盘文件**
+- `true`：前端删除时同时删除磁盘文件（不可恢复）
+- `ask`：删除时弹出询问（删除文件 / 仅移除列表 / 取消），推荐使用
+
+更多配置项见下方官方文档。
+
+---
+
 # MeTube
 
 ![Build Status](https://github.com/alexta69/metube/actions/workflows/main.yml/badge.svg)
