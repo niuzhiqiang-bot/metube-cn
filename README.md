@@ -52,6 +52,72 @@ docker run -d \
 
 更多配置项见下方官方文档。
 
+### 自动构建（CI / GitHub Actions）
+
+仓库可用 GitHub Actions 自动构建 **amd64 / arm64 双架构镜像**并推送到 GitHub Container Registry（`ghcr.io`）。
+
+> ⚠️ 说明：由于推送源码时使用的 OAuth token 无 `workflow` scope，`.github/workflows/` 目录未随源码提交。请在仓库页面**手动新建** `.github/workflows/build.yml`（网页端创建无需 token），内容如下：
+
+```yaml
+name: Build MeTube-CN
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - platform: linux/amd64
+            target: amd64
+          - platform: linux/arm64
+            target: arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          build-args: TARGETARCH=${{ matrix.target }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-${{ matrix.target }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}-${{ matrix.target }}
+          push: true
+```
+
+要点：
+- `TARGETARCH` 通过 `--build-arg` 显式传入（多架构构建必须）
+- 用 `buildx` 而非 legacy builder，arm64 通过 QEMU 模拟交叉构建
+- 产物推送到 `ghcr.io/niuzhiqiang-bot/metube-cn`，仓库公开即可匿名拉取
+- 每次 push 到 `main` 自动触发，也可在 Actions 页手动触发
+
 ---
 
 # MeTube
