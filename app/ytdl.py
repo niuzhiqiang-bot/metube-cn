@@ -915,7 +915,7 @@ class Download:
         """下载前检查磁盘剩余空间，不足则拒绝。
 
         依据所选 format 的预计大小（filesize / filesize_approx）与一个最小
-        安全余量（MIN_DISK_SPACE_GB，默认 5 GB）综合判断：大视频（如 4K）
+        安全余量（MIN_DISK_SPACE_GB，默认 10 GB）综合判断：大视频（如 4K）
         下载+后处理合并需要成倍空间，若剩余空间不够，直接抛错让下载失败，
         避免像过去那样把磁盘写满后卡在 100% 的 "Conversion failed" 状态。
         """
@@ -923,9 +923,9 @@ class Download:
 
         free = shutil.disk_usage(self.temp_dir or self.download_dir).free
         try:
-            min_free = int(os.environ.get('MIN_DISK_SPACE_GB', '5')) * (1024 ** 3)
+            min_free = int(os.environ.get('MIN_DISK_SPACE_GB', '10')) * (1024 ** 3)
         except ValueError:
-            min_free = 5 * (1024 ** 3)
+            min_free = 10 * (1024 ** 3)
 
         estimated = 0.0
         # 优先：用所选 format 探测精确大小（filesize / filesize_approx）
