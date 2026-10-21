@@ -911,6 +911,57 @@ class Download:
 
         return put_status_postprocessor
 
+    def _check_disk_space(self, ydl_params):
+        """下载前检查磁盘剩余空间，不足则拒绝。
+
+        依据所选 format 的预计大小（filesize / filesize_approx）与一个最小
+        安全余量（MIN_DISK_SPACE_GB，默认 5 GB）综合判断：大视频（如 4K）
+        下载+后处理合并需要成倍空间，若剩余空间不够，直接抛错让下载失败，
+        避免像过去那样把磁盘写满后卡在 100% 的 "Conversion failed" 状态。
+        """
+        import shutil
+
+        free = shutil.disk_usage(self.temp_dir or self.download_dir).free
+        try:
+            min_free = int(os.environ.get('MIN_DISK_SPACE_GB', '5')) * (1024 ** 3)
+        except ValueError:
+            min_free = 5 * (1024 ** 3)
+
+        estimated = 0.0
+        # 优先：用所选 format 探测精确大小（filesize / filesize_approx）
+        try:
+            ydl = self._make_youtube_dl(ydl_params)
+            info = ydl.extract_info(self.info.url, download=False)
+            if info:
+                fmts = info.get('requested_formats') or []
+                if fmts:
+                    estimated = sum(
+                        (f.get('filesize') or f.get('filesize_approx') or 0) for f in fmts
+                    )
+                else:
+                    estimated = info.get('filesize') or info.get('filesize_approx') or 0
+        except Exception as exc:
+            log.warning(
+                f"Could not probe file size for disk guard ({exc}); "
+                "falling back to entry metadata size"
+            )
+            entry = getattr(self.info, 'entry', None)
+            if isinstance(entry, dict):
+                estimated = entry.get('filesize') or entry.get('filesize_approx') or 0
+
+        # 音视频下载 + 后处理合并峰值通常接近两倍文件大小，预留 1.2 倍系数
+        required = estimated * 1.2 + min_free
+        if free < required:
+            msg = (
+                f"磁盘空间不足，已拒绝下载：预计需要约 "
+                f"{required / (1024 ** 3):.1f} GB（视频约 "
+                f"{estimated / (1024 ** 3):.1f} GB + 安全余量 "
+                f"{min_free / (1024 ** 3):.1f} GB），当前仅剩 "
+                f"{free / (1024 ** 3):.1f} GB。"
+            )
+            log.error(msg)
+            raise yt_dlp.utils.DownloadError(msg)
+
     def _make_youtube_dl(self, params):
         ydl = _ConfinedYoutubeDL(
             params=params,
@@ -1032,6 +1083,11 @@ class Download:
                     None,
                     [(start, end)],
                 )
+
+            # Disk-space guard: refuse to start a download that would not fit
+            # the remaining free space (huge 4K files previously filled the disk
+            # and stalled the download at 100% with a Conversion failure).
+            self._check_disk_space(ytdl_params)
 
             ret = self._make_youtube_dl(ytdl_params).download([self.info.url])
             if ret == 0:
