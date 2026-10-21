@@ -88,6 +88,12 @@ RUN BGUTIL_TAG="$(curl -Ls -o /dev/null -w '%{url_effective}' https://github.com
 COPY app ./app
 COPY --from=builder /metube/dist/metube ./ui/dist/metube
 
+# Chinese localization: run hanhua.py against the Angular bundle so the UI
+# text (C(id,"...")) is replaced with Chinese at build time and survives every
+# rebuild (MeTube has no i18n framework; strings are hardcoded in the bundle).
+COPY hanhua.py ./
+RUN python3 hanhua.py && rm -f hanhua.py
+
 ENV PUID=1000
 ENV PGID=1000
 ENV UMASK=022
